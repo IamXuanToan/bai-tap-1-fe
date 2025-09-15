@@ -1,6 +1,6 @@
 import { DeleteOutlined, EditOutlined, EyeOutlined } from '@ant-design/icons';
 import { Button, Popconfirm, Progress, Space, Tag, Tooltip, type PopconfirmProps } from 'antd';
-import type { ITask } from './interface/TaskInterface';
+import type { ITask } from '../interface/TaskInterface';
 import type { ColumnsType } from 'antd/lib/table';
 import { useDispatch } from 'react-redux';
 import { taskSlice } from './taskSlice';
@@ -121,11 +121,15 @@ export const columns = (
                         okText="Xóa luôn!"
                         cancelText="Đợi đã nào"
                         onConfirm={() => {
-                            disPatch(taskSlice.actions.setId(record.id));
                             handleConfirm();
                         }}
                     >
-                        <Button color="danger" variant="solid" icon={<DeleteOutlined />} />
+                        <Button
+                            color="danger"
+                            variant="solid"
+                            icon={<DeleteOutlined />}
+                            onClick={() => disPatch(taskSlice.actions.setId(record.id))}
+                        />
                     </Popconfirm>
                 </Space>
             ),

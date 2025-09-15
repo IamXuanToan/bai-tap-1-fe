@@ -2,12 +2,12 @@ import { Button, Col, message, Row, Skeleton, Table, Tag, Typography } from 'ant
 import ModalAddTask from './ModalTask';
 import { useEffect, useRef, useState } from 'react';
 import type { PopconfirmProps } from 'antd';
-import taskApi from '../api/taskApi';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import taskApi from '../../api/taskApi';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { columns } from './taskColumns';
 import { taskSlice } from './taskSlice';
-import { useAppDispatch, useAppSelector } from '../hooks/hooks';
-import type { ITask } from './interface/TaskInterface';
+import { useAppDispatch, useAppSelector } from '../../hooks/hooks';
+import type { ITask } from '../interface/TaskInterface';
 
 const { Title } = Typography;
 
@@ -20,9 +20,13 @@ type CountStatus = {
 
 // console.log('ListTask');
 function ListTask() {
+    const queryClient = useQueryClient();
+
     const [messageApi, contextHolder] = message.useMessage(); // 👈 hook nằm trong component
 
     const [isOpenModalAddTask, setIsOpenModalAddTask] = useState(false);
+
+    // const [isDisabled, setIsDisabled] = useState(false);
 
     const [countStatus, setCountStatus] = useState<CountStatus>();
 
@@ -34,10 +38,16 @@ function ListTask() {
 
     const deleteTaskMutation = useMutation({
         mutationFn: (id: number) => taskApi.delete(id),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['getAllTask'] });
+            messageApi.success('Xóa thành công!!');
+        },
+        onError: () => {
+            messageApi.error('Xóa thất bại, thử lại sau!');
+        },
     });
 
     const handleConfirm: PopconfirmProps['onConfirm'] = () => {
-        console.log(idTask);
         deleteTaskMutation.mutate(Number(idTask));
         // messageApi.success('Xóa thành công!! test');
         if (deleteTaskMutation.isSuccess === true) {
@@ -53,12 +63,22 @@ function ListTask() {
         setIsOpenModalAddTask(false);
     };
 
-    const { data, isLoading } = useQuery({
+    const state = useAppSelector((state) => state);
+
+    const { data, isLoading, refetch } = useQuery({
         queryKey: ['getAllTask'],
-        queryFn: () => {
-            return taskApi.getAll();
+        queryFn: async () => {
+            return await taskApi.getAll({
+                text: state.filter.text,
+                date: state.filter.date,
+                status: state.filter.status,
+            });
         },
     });
+
+    useEffect(() => {
+        refetch();
+    }, [state.filter.text, state.filter.date, state.filter.status, refetch]);
 
     useEffect(() => {
         let newCount: number = 0;

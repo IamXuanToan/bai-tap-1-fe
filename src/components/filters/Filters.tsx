@@ -1,26 +1,25 @@
 import { Col, DatePicker, Form, Input, Row, Select, Tag, Typography } from 'antd';
-import type { GetProps, SelectProps } from 'antd';
+import type { SelectProps } from 'antd';
 
-import dayjs from 'dayjs';
-import { useState } from 'react';
+import dayjs, { Dayjs } from 'dayjs';
+import { useEffect, useState } from 'react';
+import { useAppDispatch } from '../../hooks/hooks';
+import { filterSlice } from './filterSlice';
+import { useDebounce } from '../../hooks/useDebounce';
 
-type RangePickerProps = GetProps<typeof DatePicker.RangePicker>;
-type DateString = [string?, string?];
+type DateString = [string?, string?] | [];
+
+type DateDayjs = [Dayjs | null, Dayjs | null] | null;
+
 type TagRender = SelectProps['tagRender'];
 
-const disabledDate: RangePickerProps['disabledDate'] = (current) => {
-    // Can not select days before today and today
-    return !!current && current < dayjs().startOf('day');
-};
+type Status = string[];
 
 const options: SelectProps['options'] = [
-    { value: 'blue', label: 'Mới' },
-    { value: 'cyan', label: 'Đang Làm' },
-    { value: 'red', label: 'Đã Hoàn Thành' },
-    { value: 'green', label: 'Chưa Hoàn Thành' },
+    { color: 'blue', value: 'new', label: 'Mới' },
+    { color: 'cyan', value: 'inProgress', label: 'Đang làm' },
+    { color: 'green', value: 'completed', label: 'Đã hoàn thành' },
 ];
-
-// const value: ValueSelector = ['1', '2', '3'];
 
 const tagRender: TagRender = (props) => {
     const { label, value, closable, onClose } = props;
@@ -28,9 +27,11 @@ const tagRender: TagRender = (props) => {
         event.preventDefault();
         event.stopPropagation();
     };
+    const option = options.find((o) => o.value === value);
+
     return (
         <Tag
-            color={value}
+            color={option?.color}
             onMouseDown={onPreventMouseDown}
             closable={closable}
             onClose={onClose}
@@ -46,17 +47,41 @@ const { Title } = Typography;
 const { RangePicker } = DatePicker;
 
 function Filters() {
-    const [dateStrings, setdateStrings] = useState<DateString | null>(null);
+    const [dateStrings, setdateStrings] = useState<DateString>([]);
 
-    // const [selectedDates, setSelectedDates] = useState<[Dayjs | null, Dayjs | null] | null>(null);
+    const [textSearch, setTextSearch] = useState('');
+    const [dateSearch, setDateSearch] = useState<DateDayjs | null>(null);
 
-    // const [date, setDate] = useState(true);
+    const [statusSearch, setStatusSearch] = useState<Status>([]);
+    const disPatch = useAppDispatch();
 
-    const handleDateChange = (dateString: DateString) => {
-        setdateStrings(dateString);
-        if (dateString[0] === '') {
-            return setdateStrings([]);
-        }
+    const debouncedText = useDebounce(textSearch, 500);
+
+    const handleChangeText = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        setTextSearch(e.target.value);
+    };
+
+    //dùng debounced để khi nhập ví dụ muốn tìm 'xuân' thì khi nhập vào text thì sau 500ms mới thêm text và redux
+    useEffect(() => {
+        disPatch(filterSlice.actions.setText(debouncedText));
+    }, [debouncedText, disPatch]);
+
+    const handleChangeDate = (dates: DateDayjs, dateStrings: DateString) => {
+        const normalized: DateString =
+            !dateStrings || dateStrings.length === 0 || dateStrings[0] === '' ? [] : dateStrings;
+
+        setdateStrings(normalized);
+        setDateSearch(dates);
+        // if(dateStrings)
+        // console.log(dateStrings);
+
+        disPatch(filterSlice.actions.setDate(normalized));
+    };
+
+    const handleChangeStatus = (value: string[]) => {
+        // console.log(value);
+        setStatusSearch(value);
+        disPatch(filterSlice.actions.setStatus(value));
     };
 
     return (
@@ -80,6 +105,8 @@ function Filters() {
                                     show: true,
                                     max: 200,
                                 }}
+                                value={textSearch}
+                                onChange={handleChangeText}
                             />
                         </Form.Item>
                         <Form.Item style={{ marginBottom: '6px' }} label={'Chọn ngày'} name={'filterDate'}>
@@ -87,21 +114,16 @@ function Filters() {
                                 <RangePicker
                                     style={{ width: '100%' }}
                                     // value={selectedDates}
-                                    disabledDate={disabledDate}
-                                    format={'DD-MM-YYYY'}
+                                    format={'YYYY-MM-DD'}
                                     allowEmpty={true}
+                                    value={dateSearch}
                                     onChange={(dates, dateStrings) => {
-                                        if (!dates || !dates[0]) {
-                                            // reset state khi không chọn ngày
-                                            handleDateChange(['']);
-                                        } else {
-                                            handleDateChange(dateStrings);
-                                        }
+                                        handleChangeDate(dates, dateStrings);
                                     }}
                                 />
                                 <div className="animate-pulse mt-2 text-center" style={{ whiteSpace: 'pre-line' }}>
                                     {dateStrings?.length === 0 || dateStrings === null || dateStrings?.[0] === ''
-                                        ? `Đăng hiển thị công việc\ntrong ngày hôm nay ${dayjs().format('DD-MM-YYYY')}!`
+                                        ? `Đăng hiển thị tất cả công việc!`
                                         : `Đang hiển thị công việc\ntừ ${dateStrings[0]} đến ${dateStrings[1]}!`}
                                 </div>
                             </div>
@@ -113,10 +135,11 @@ function Filters() {
                         >
                             <Select
                                 mode="multiple"
-                                tagRender={tagRender}
-                                optionFilterProp="label"
                                 style={{ width: '100%' }}
                                 options={options}
+                                tagRender={tagRender}
+                                value={statusSearch}
+                                onChange={handleChangeStatus}
                             />
                         </Form.Item>
                     </Form>

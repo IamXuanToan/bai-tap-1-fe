@@ -1,6 +1,6 @@
 import { Col, Row } from 'antd';
-import Filters from './components/Filters';
-import ListTask from './components/ListTasks';
+import Filters from './components/filters/Filters';
+import ListTask from './components/tasks/ListTasks';
 
 function App() {
     return (
