@@ -1,5 +1,5 @@
 import { MinusOutlined, PlusOutlined } from '@ant-design/icons';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import {
     Button,
     Col,
@@ -16,13 +16,16 @@ import {
     Space,
     Tag,
     Typography,
+    type FormProps,
 } from 'antd';
 import type { RangePickerProps } from 'antd/es/date-picker';
 import dayjs from 'dayjs';
 import React, { useEffect, useState } from 'react';
-import taskApi, { type DataCreate, type DataUpdate } from '../../api/taskApi';
+import taskApi from '../../api/taskApi';
 import { useAppSelector } from '../../hooks/hooks';
 import './ModalTask.scss';
+import useCreateTaskMutation from './hooks/useCreateTaskMutation';
+import useUpdateTaskMutation from './hooks/useUpdateTaskMutation';
 // import type { ITask } from './interface/TaskInterface';
 
 type ModalAddTask = {
@@ -31,9 +34,15 @@ type ModalAddTask = {
     type?: string;
 };
 
-type UpdateTaskParams = {
-    id: number;
-    payload: DataUpdate;
+type FieldType = {
+    nameTask?: string;
+    descTask?: string;
+    status?: string;
+    timeTask?: dayjs.Dayjs[];
+    statuses?: string;
+    timatedTime?: string;
+    estimatedTime?: string;
+    done?: string;
 };
 
 const disabledDate: RangePickerProps['disabledDate'] = (current) => {
@@ -45,7 +54,9 @@ const { Title } = Typography;
 const { TextArea } = Input;
 const { RangePicker } = DatePicker;
 function ModalAddTask({ onOpen, handleCancel }: ModalAddTask) {
-    const queryClient = useQueryClient();
+    // const queryClient = useQueryClient();
+
+    // const disPatch = useAppDispatch();
 
     const [messageApi, contextHolder] = message.useMessage(); // 👈 hook nằm trong component
 
@@ -62,33 +73,9 @@ function ModalAddTask({ onOpen, handleCancel }: ModalAddTask) {
     const isDisabled = type === 'view';
     const isEdit = type === 'edit';
 
-    const createTaskMutation = useMutation({
-        mutationFn: (payload: DataCreate) => taskApi.create(payload),
-        onSuccess: () => {
-            // khi tạo thành công refetch lại list
-            queryClient.invalidateQueries({ queryKey: ['getAllTask'] });
-            messageApi.success('Thêm mới công việc thành công!!');
-            // đóng modal
-            handleCancel();
-        },
-        onError: () => {
-            messageApi.error('Thêm mới thất bại, thử lại sau!');
-        },
-    });
+    const createTaskMutation = useCreateTaskMutation();
 
-    const updateTaskMutation = useMutation({
-        mutationFn: ({ id, payload }: UpdateTaskParams) => taskApi.update(id, payload),
-        onSuccess: () => {
-            // khi tạo thành công → refetch lại list
-            queryClient.invalidateQueries({ queryKey: ['getAllTask'] });
-            messageApi.success('Sửa công việc thành công!!');
-            // đóng modal
-            handleCancel();
-        },
-        onError: () => {
-            messageApi.error('Sửa thất bại, thử lại sau!');
-        },
-    });
+    const updateTaskMutation = useUpdateTaskMutation();
 
     const getTask = useQuery({
         queryKey: ['getTask', idTask],
@@ -140,11 +127,54 @@ function ModalAddTask({ onOpen, handleCancel }: ModalAddTask) {
     useEffect(() => {
         if (createTaskMutation.isPending || updateTaskMutation.isPending) {
             setIsLoading(true);
-            // console.log('done');
+        } else {
+            setIsLoading(false);
         }
-    }, [createTaskMutation.isPending, updateTaskMutation.isPending]);
+
+        if (createTaskMutation.isSuccess) {
+            messageApi.success('Thêm công việc thành công!!');
+            handleCancel();
+        }
+
+        if (updateTaskMutation.isSuccess) {
+            messageApi.success('Sửa công việc thành công!!');
+            handleCancel();
+            updateTaskMutation.reset();
+        }
+    }, [createTaskMutation.isPending, updateTaskMutation.isPending, createTaskMutation.isSuccess]);
 
     // const title = ;
+
+    const handleSubmitForm: FormProps<FieldType>['onFinish'] = (values) => {
+        const [start_date, due_date] = (values.timeTask as dayjs.Dayjs[]).map((d: dayjs.Dayjs) =>
+            d.format('YYYY-MM-DD'),
+        ); // setData(values);
+
+        if (!isEdit) {
+            createTaskMutation.mutate({
+                title: String(values.nameTask),
+                start_date,
+                due_date,
+                status: 'new',
+                description: String(values.descTask),
+                estimated_time: String(values.estimatedTime),
+                percent_done: String(percent),
+            });
+        } else {
+            updateTaskMutation.mutate({
+                id: Number(idTask),
+                payload: {
+                    title: values.nameTask,
+                    start_date,
+                    due_date,
+                    status: values.status,
+                    description: values.descTask,
+                    estimated_time: values.estimatedTime,
+                    percent_done: String(percent),
+                },
+            });
+        }
+    };
 
     return (
         <>
@@ -182,51 +212,12 @@ function ModalAddTask({ onOpen, handleCancel }: ModalAddTask) {
                             done: 0,
                         }}
                         onFinish={(values) => {
-                            const [start_date, due_date] = values.timeTask.map((d: dayjs.Dayjs) =>
-                                d.format('YYYY-MM-DD'),
-                            ); // setData(values);
+                            // console.log(values);
 
-                            if (!isEdit) {
-                                createTaskMutation.mutate(
-                                    {
-                                        title: values.nameTask,
-                                        start_date,
-                                        due_date,
-                                        status: 'new',
-                                        description: values.descTask,
-                                        estimated_time: values.estimatedTime,
-                                        percent_done: String(percent),
-                                    },
-                                    {
-                                        onSuccess: () => {
-                                            setIsLoading(false);
-                                        },
-                                    },
-                                );
-                            } else {
-                                updateTaskMutation.mutate(
-                                    {
-                                        id: Number(idTask),
-                                        payload: {
-                                            title: values.nameTask,
-                                            start_date,
-                                            due_date,
-                                            status: values.status,
-                                            description: values.descTask,
-                                            estimated_time: values.estimatedTime,
-                                            percent_done: String(percent),
-                                        },
-                                    },
-                                    {
-                                        onSuccess: () => {
-                                            setIsLoading(false);
-                                        },
-                                    },
-                                );
-                            }
+                            handleSubmitForm(values);
                         }}
                     >
-                        <Form.Item
+                        <Form.Item<FieldType>
                             style={{ marginBottom: '6px' }}
                             label={'Nhập tên công việc'}
                             name={'nameTask'}
@@ -243,10 +234,14 @@ function ModalAddTask({ onOpen, handleCancel }: ModalAddTask) {
                                 readOnly={isDisabled}
                             />
                         </Form.Item>
-                        <Form.Item style={{ marginBottom: '6px' }} label={'Nhập mô tả công việc'} name={'descTask'}>
+                        <Form.Item<FieldType>
+                            style={{ marginBottom: '6px' }}
+                            label={'Nhập mô tả công việc'}
+                            name={'descTask'}
+                        >
                             <TextArea rows={3} readOnly={isDisabled} />
                         </Form.Item>
-                        <Form.Item
+                        <Form.Item<FieldType>
                             style={{ marginBottom: '6px' }}
                             label={'Chọn ngày'}
                             name={'timeTask'}
@@ -262,7 +257,7 @@ function ModalAddTask({ onOpen, handleCancel }: ModalAddTask) {
                             />
                         </Form.Item>
                         {isEdit && (
-                            <Form.Item
+                            <Form.Item<FieldType>
                                 style={{ marginBottom: '6px' }}
                                 label={'Chọn trạng thái'}
                                 name={'status'}
@@ -283,7 +278,7 @@ function ModalAddTask({ onOpen, handleCancel }: ModalAddTask) {
                         )}
                         <Row gutter={36}>
                             <Col span={12}>
-                                <Form.Item
+                                <Form.Item<FieldType>
                                     style={{ marginBottom: '6px' }}
                                     label={'Thời gian dự tính (giờ)'}
                                     name={'estimatedTime'}
@@ -301,7 +296,11 @@ function ModalAddTask({ onOpen, handleCancel }: ModalAddTask) {
                                 </Form.Item>
                             </Col>
                             <Col span={12}>
-                                <Form.Item style={{ marginBottom: '6px' }} label={'% Hoàn thành'} name={'done'}>
+                                <Form.Item<FieldType>
+                                    style={{ marginBottom: '6px' }}
+                                    label={'% Hoàn thành'}
+                                    name="done"
+                                >
                                     <>
                                         <Flex gap="small">
                                             <Flex vertical gap="small">
@@ -325,7 +324,10 @@ function ModalAddTask({ onOpen, handleCancel }: ModalAddTask) {
                             </Col>
                             {!isDisabled && (
                                 <Col span={24}>
-                                    <Form.Item label={null} style={{ textAlign: 'center', marginTop: '10px' }}>
+                                    <Form.Item<FieldType>
+                                        label={null}
+                                        style={{ textAlign: 'center', marginTop: '10px' }}
+                                    >
                                         <Space>
                                             {!isEdit && (
                                                 <Button

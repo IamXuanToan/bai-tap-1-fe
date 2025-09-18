@@ -35,6 +35,7 @@ function ListTask() {
     const titleRef = useRef<HTMLDivElement | null>(null);
 
     const idTask = useAppSelector((state) => state.task.id);
+    const listAllTask = useAppSelector((state) => state.task.AllTask);
 
     const deleteTaskMutation = useMutation({
         mutationFn: (id: number) => taskApi.delete(id),
@@ -65,7 +66,7 @@ function ListTask() {
 
     const state = useAppSelector((state) => state);
 
-    const { data, isLoading, refetch } = useQuery({
+    const { data, isLoading, refetch, isSuccess } = useQuery({
         queryKey: ['getAllTask'],
         queryFn: async () => {
             return await taskApi.getAll({
@@ -74,7 +75,14 @@ function ListTask() {
                 status: state.filter.status,
             });
         },
+        refetchOnWindowFocus: false,
     });
+
+    useEffect(() => {
+        if (isSuccess) {
+            disPatch(taskSlice.actions.setAllTask(data.data));
+        }
+    }, [isSuccess, data, disPatch]);
 
     useEffect(() => {
         refetch();
@@ -85,7 +93,7 @@ function ListTask() {
         let inProgressCount: number = 0;
         let completedCount: number = 0;
         // let notCompletedCount: number = 0;
-        data?.data.map((task: ITask) => {
+        listAllTask.map((task: ITask) => {
             switch (task.status) {
                 case 'new':
                     // console.log('new');

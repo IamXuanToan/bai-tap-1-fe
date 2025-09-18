@@ -1,9 +1,10 @@
 import { DeleteOutlined, EditOutlined, EyeOutlined } from '@ant-design/icons';
-import { Button, Popconfirm, Progress, Space, Tag, Tooltip, type PopconfirmProps } from 'antd';
+import { Button, Popconfirm, Progress, Space, Tooltip, type PopconfirmProps } from 'antd';
 import type { ITask } from '../interface/TaskInterface';
 import type { ColumnsType } from 'antd/lib/table';
 import { useDispatch } from 'react-redux';
 import { taskSlice } from './taskSlice';
+import setStatus from './setStatus';
 
 // console.log('columns');
 
@@ -28,38 +29,7 @@ export const columns = (
             dataIndex: 'status',
             key: 'status',
             render: (status: string) => {
-                switch (status) {
-                    case 'new':
-                        return (
-                            <div className="text-center">
-                                <Tag color="blue">Mới</Tag>
-                            </div>
-                        );
-                    case 'inProgress':
-                        return (
-                            <div className="text-center">
-                                <Tag color="cyan">Đang làm</Tag>
-                            </div>
-                        );
-                    case 'completed':
-                        return (
-                            <div className="text-center">
-                                <Tag color="green">Đã hoàn thành</Tag>
-                            </div>
-                        );
-                    case 'notCompleted':
-                        return (
-                            <div className="text-center">
-                                <Tag color="red">Chưa hoàn thành</Tag>
-                            </div>
-                        );
-                    default:
-                        return (
-                            <div className="text-center">
-                                <Tag>{status}</Tag>
-                            </div>
-                        );
-                }
+                return setStatus(status);
             },
         },
         {

@@ -1,11 +1,14 @@
 export interface ITask {
-    id: number;
+    id?: number;
     title: string;
-    status: string;
     start_date: string;
     due_date: string;
-    estimated_time: number;
-    percent_done: number;
+    status: string;
+    description: string;
+    estimated_time: string;
+    percent_done: string;
+    created_at: string;
+    updated_at: string;
 }
 
 export interface ITaskRow {

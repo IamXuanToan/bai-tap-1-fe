@@ -1,7 +1,7 @@
 import { Col, DatePicker, Form, Input, Row, Select, Tag, Typography } from 'antd';
 import type { SelectProps } from 'antd';
 
-import dayjs, { Dayjs } from 'dayjs';
+import { Dayjs } from 'dayjs';
 import { useEffect, useState } from 'react';
 import { useAppDispatch } from '../../hooks/hooks';
 import { filterSlice } from './filterSlice';
